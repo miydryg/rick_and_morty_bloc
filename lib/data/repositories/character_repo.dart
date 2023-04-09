@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:rick_and_morty_bloc/data/models/character.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;

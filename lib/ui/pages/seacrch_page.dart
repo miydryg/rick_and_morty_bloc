@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:rick_and_morty_bloc/bloc/character_bloc.dart';
 import 'package:rick_and_morty_bloc/data/models/character.dart';
 
 import '../widgets/custom_listview.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({Key? key}) : super(key: key);
+  const SearchPage({Key? key,}) : super(key: key);
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -18,12 +20,21 @@ class _SearchPageState extends State<SearchPage> {
   int _currentPage = 1;
   String _currentSearchStr = '';
 
+  final RefreshController refreshController = RefreshController();
+  bool _isPagination = false;
+
+  final _storage = HydratedBloc.storage;
+
+
+
   @override
   void initState() {
-    if (_currentResults.isEmpty) {
-      context
-          .read<CharacterBloc>()
-          .add(const CharacterEvent.fetch(name: '', page: 1));
+    if(_storage.runtimeType.toString().isEmpty){
+      if (_currentResults.isEmpty) {
+        context
+            .read<CharacterBloc>()
+            .add(const CharacterEvent.fetch(name: '', page: 1));
+      }
     }
 
     super.initState();
@@ -63,26 +74,38 @@ class _SearchPageState extends State<SearchPage> {
         Expanded(
           child: state.when(
             loading: () {
-              return Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
-                    SizedBox(
-                      width: 10,
-                    ),
-                    Text('Loading...')
-                  ],
-                ),
-              );
+              if(!_isPagination){
+                return const Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                      SizedBox(
+                        width: 10,
+                      ),
+                      Text('Loading...')
+                    ],
+                  ),
+                );
+              }else{
+                return CustomListView(currentResultsList: _currentResults, currentPageListView: _currentPage,  isPaginationListView: _isPagination);
+              }
+
             },
             loaded: (characterLoaded) {
               _currentCharacter = characterLoaded;
-              _currentResults = _currentCharacter.results;
+              if(_isPagination){
+                _currentResults.addAll(_currentCharacter.results);
+                refreshController.loadComplete();
+                _isPagination = false;
+              }else{
+                _currentResults = _currentCharacter.results;
+              }
+
               return _currentResults.isNotEmpty
-                  ? CustomListView(currentResultsList: _currentResults,)
+                  ? CustomListView(currentResultsList: _currentResults, currentPageListView: _currentPage, currentCharacterListView: _currentCharacter, currentSearchStrListView: _currentSearchStr, isPaginationListView: _isPagination, refreshControllerListView:refreshController)
                   : const SizedBox();
             },
             error: () => const Text('Nothing found...'),
@@ -92,4 +115,6 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 }
+
+
 
